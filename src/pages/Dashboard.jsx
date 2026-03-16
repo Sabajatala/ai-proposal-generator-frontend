@@ -1,0 +1,134 @@
+import { useEffect, useState } from 'react';
+import { getAllProposals } from '../api/api';
+import { 
+  FaFileAlt,       // total
+  FaSave,          // draft
+  FaPaperPlane,    // sent
+  FaCheckCircle,   // accepted
+  FaTimesCircle,   // rejected
+  FaRupeeSign      // revenue (better for PKR than FaDollarSign)
+} from 'react-icons/fa';
+
+export default function Dashboard() {
+  const [stats, setStats] = useState({
+    total: 0,
+    draft: 0,
+    sent: 0,
+    accepted: 0,
+    rejected: 0,
+    revenue: 0,
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getAllProposals()
+      .then(res => {
+        const list = res.data.data || [];
+
+        const accepted = list.filter(p => p.status === 'Accepted');
+
+        // PKR conversion – adjust rate as needed (or remove multiplication if already in PKR)
+        const USD_TO_PKR = 279.5; // approx March 2026 rate – update when needed
+
+        const totalRevenuePKR = accepted.reduce((sum, p) => {
+          const amount = Number(p.pricing || p.totalAmount || p.amount || 0);
+          return sum + (isNaN(amount) ? 0 : amount * USD_TO_PKR);
+        }, 0);
+
+        setStats({
+          total: list.length,
+          draft: list.filter(p => p.status === 'Draft').length,
+          sent: list.filter(p => p.status === 'Sent').length,
+          accepted: accepted.length,
+          rejected: list.filter(p => p.status === 'Rejected').length,
+          revenue: Math.round(totalRevenuePKR), // whole number for PKR
+        });
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div style={{ padding: '3rem', textAlign: 'center' }}>Loading...</div>;
+
+  const cardStyle = {
+    background: 'white',
+    padding: '1.5rem',
+    borderRadius: '0.75rem',
+    boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
+    textAlign: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+  };
+
+  const iconStyle = {
+    fontSize: '2.2rem',
+    marginBottom: '0.75rem',
+    opacity: 0.85,
+  };
+
+  return (
+    <div>
+      <h2 style={{ marginBottom: '2rem' }}>Dashboard</h2>
+
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+        gap: '1.25rem'
+      }}>
+        {/* Total */}
+        <div style={cardStyle}>
+          <FaFileAlt style={{ ...iconStyle, color: '#4f46e5' }} />
+          <div style={{ color: '#64748b', fontSize: '0.95rem' }}>Total</div>
+          <div style={{ fontSize: '2.5rem', fontWeight: 'bold', margin: '0.4rem 0' }}>
+            {stats.total}
+          </div>
+        </div>
+
+        {/* Draft */}
+        <div style={cardStyle}>
+          <FaSave style={{ ...iconStyle, color: '#d97706' }} />
+          <div style={{ color: '#64748b', fontSize: '0.95rem' }}>Draft</div>
+          <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#f59e0b' }}>
+            {stats.draft}
+          </div>
+        </div>
+
+        {/* Sent */}
+        <div style={cardStyle}>
+          <FaPaperPlane style={{ ...iconStyle, color: '#2563eb' }} />
+          <div style={{ color: '#64748b', fontSize: '0.95rem' }}>Sent</div>
+          <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#3b82f6' }}>
+            {stats.sent}
+          </div>
+        </div>
+
+        {/* Accepted */}
+        <div style={cardStyle}>
+          <FaCheckCircle style={{ ...iconStyle, color: '#059669' }} />
+          <div style={{ color: '#64748b', fontSize: '0.95rem' }}>Accepted</div>
+          <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#10b981' }}>
+            {stats.accepted}
+          </div>
+        </div>
+
+        {/* Rejected */}
+        <div style={cardStyle}>
+          <FaTimesCircle style={{ ...iconStyle, color: '#dc2626' }} />
+          <div style={{ color: '#64748b', fontSize: '0.95rem' }}>Rejected</div>
+          <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#ef4444' }}>
+            {stats.rejected}
+          </div>
+        </div>
+
+        {/* Revenue (PKR) */}
+        <div style={cardStyle}>
+          <FaRupeeSign style={{ ...iconStyle, color: '#047857' }} />
+          <div style={{ color: '#64748b', fontSize: '0.95rem' }}>Total Revenue</div>
+          <div style={{ fontSize: '2.3rem', fontWeight: 'bold', color: '#059669', margin: '0.4rem 0' }}>
+            PKR {stats.revenue.toLocaleString('en-US')}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
