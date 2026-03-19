@@ -1,3 +1,4 @@
+// src/pages/Dashboard.jsx
 import { useEffect, useState } from 'react';
 import { getAllProposals } from '../api/api';
 import { 
@@ -6,7 +7,7 @@ import {
   FaPaperPlane,    // sent
   FaCheckCircle,   // accepted
   FaTimesCircle,   // rejected
-  FaRupeeSign      // revenue (better for PKR than FaDollarSign)
+  FaRupeeSign      // revenue (PKR)
 } from 'react-icons/fa';
 
 export default function Dashboard() {
@@ -25,26 +26,36 @@ export default function Dashboard() {
       .then(res => {
         const list = res.data.data || [];
 
+        // Count statuses
+        const draft = list.filter(p => p.status === 'Draft').length;
+        const sent = list.filter(p => p.status === 'Sent').length;
         const accepted = list.filter(p => p.status === 'Accepted');
+        const rejected = list.filter(p => p.status === 'Rejected').length;
 
-        // PKR conversion – adjust rate as needed (or remove multiplication if already in PKR)
-        const USD_TO_PKR = 279.5; // approx March 2026 rate – update when needed
-
-        const totalRevenuePKR = accepted.reduce((sum, p) => {
-          const amount = Number(p.pricing || p.totalAmount || p.amount || 0);
-          return sum + (isNaN(amount) ? 0 : amount * USD_TO_PKR);
+        // Calculate revenue from Accepted proposals
+        const totalRevenue = accepted.reduce((sum, p) => {
+          // Extract numeric value from pricing string
+          let amountStr = p.aiContent?.pricing || '';
+          
+          // Remove non-numeric characters (PKR, commas, spaces, "Total...", etc.)
+          const cleanAmount = amountStr.replace(/[^0-9]/g, '');
+          
+          const amount = Number(cleanAmount) || 0;
+          return sum + amount;
         }, 0);
 
         setStats({
           total: list.length,
-          draft: list.filter(p => p.status === 'Draft').length,
-          sent: list.filter(p => p.status === 'Sent').length,
+          draft,
+          sent,
           accepted: accepted.length,
-          rejected: list.filter(p => p.status === 'Rejected').length,
-          revenue: Math.round(totalRevenuePKR), // whole number for PKR
+          rejected,
+          revenue: totalRevenue,
         });
       })
-      .catch(() => {})
+      .catch(() => {
+        // interceptor already shows toast
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -78,7 +89,7 @@ export default function Dashboard() {
         {/* Total */}
         <div style={cardStyle}>
           <FaFileAlt style={{ ...iconStyle, color: '#4f46e5' }} />
-          <div style={{ color: '#64748b', fontSize: '0.95rem' }}>Total</div>
+          <div style={{ color: '#64748b', fontSize: '0.95rem' }}>Total Proposals</div>
           <div style={{ fontSize: '2.5rem', fontWeight: 'bold', margin: '0.4rem 0' }}>
             {stats.total}
           </div>
@@ -123,9 +134,9 @@ export default function Dashboard() {
         {/* Revenue (PKR) */}
         <div style={cardStyle}>
           <FaRupeeSign style={{ ...iconStyle, color: '#047857' }} />
-          <div style={{ color: '#64748b', fontSize: '0.95rem' }}>Total Revenue</div>
+          <div style={{ color: '#64748b', fontSize: '0.95rem' }}>Estimated Revenue</div>
           <div style={{ fontSize: '2.3rem', fontWeight: 'bold', color: '#059669', margin: '0.4rem 0' }}>
-            PKR {stats.revenue.toLocaleString('en-US')}
+            PKR {stats.revenue.toLocaleString('en-PK')}
           </div>
         </div>
       </div>
